@@ -51,9 +51,9 @@ button{font:inherit;cursor:pointer;border:0}
 <div class="steps"><span>Details</span></div>
 <div class="dots"><i class="on"></i><i></i><i></i></div>
 <div class="body">
-<div class="field"><select id="payFrom"><option value="">Pay From</option><option>My Savings Account · 4417</option><option>My Current Account · 2091</option></select><span class="chev">▾</span></div>
+<div class="field"><select id="payFrom"><option value="">Pay From</option><option>Savings A/C · xxx-xxx-4417</option><option>Current A/C · xxx-xxx-2091</option><option>Savings A/C · xxx-xxx-8834</option></select><span class="chev">▾</span></div>
 <div class="field"><select id="payTo"><option value="" selected>Pay To — School Bookshop</option></select><span class="chev">▾</span></div>
-<div class="field"><input id="amount" type="number" inputmode="numeric" placeholder="Amount ( LKR )" readonly></div>
+<div class="field"><input id="amount" type="text" placeholder="Amount ( LKR )" readonly></div>
 <div class="field"><input id="remarks" type="text" maxlength="16" placeholder="Remarks - Max 16 characters" value="Bookshop order"></div>
 </div>
 <div class="footer"><button class="pay" id="payBtn">Pay</button></div>
@@ -71,7 +71,7 @@ var $=function(i){return document.getElementById(i)};
 var params=new URLSearchParams(location.search);
 var amt=params.get("amt")||"0";
 var name=params.get("name")||"";
-$("amount").value=amt;
+$("amount").value="LKR "+Number(amt).toLocaleString("en-US");
 $("payBtn").addEventListener("click",function(){
 var receipt='<div><span>Paid To</span><span>School Bookshop</span></div>'+
 (name?'<div><span>Name</span><span>'+name+'</span></div>':'')+
