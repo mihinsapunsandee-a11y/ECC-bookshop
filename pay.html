@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pay to Mobile - Demo</title>
+<style>
+:root{--ink:#1B2A4A;--muted:#8B93A6;--edge:#E3E7EE;--bg:#F4F5F8;--card:#fff;--brand:#8B1E2B;--brand2:#A8283A;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#EDEFF5;--muted:#9AA2B5;--edge:#2B3345;--bg:#12151F;--card:#1B2030}}
+:root[data-theme="dark"]{--ink:#EDEFF5;--muted:#9AA2B5;--edge:#2B3345;--bg:#12151F;--card:#1B2030}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.phone{max-width:420px;margin:0 auto;min-height:100vh;background:var(--card);display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 10px}
+.bar h1{font-size:1.15rem;margin:0;font-weight:800}
+.bar .ic{width:22px;height:22px;color:var(--muted)}
+.notice{background:#FFF6E5;color:#8A6100;font-size:.78rem;text-align:center;padding:6px 10px}
+@media (prefers-color-scheme:dark){.notice{background:#2E2610;color:#F2C878}}
+.steps{display:flex;justify-content:center;padding:6px 0 18px}
+.steps span{font-size:.85rem;color:var(--muted)}
+.dots{display:flex;gap:6px;justify-content:center;padding:0 24px 20px}
+.dots i{flex:1;height:5px;border-radius:3px;background:var(--edge)}
+.dots i.on{background:#7BB661}
+.body{flex:1;padding:0 20px}
+.field{border:1.5px solid var(--edge);border-radius:24px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.field select,.field input{border:0;background:transparent;font:inherit;color:var(--ink);width:100%;outline:none}
+.field select{appearance:none}
+.field .chev{color:var(--muted);flex:none}
+.footer{padding:24px 20px 32px}
+button{font:inherit;cursor:pointer;border:0}
+.pay{width:100%;padding:16px;border-radius:30px;background:linear-gradient(100deg,var(--brand),var(--brand2));color:#fff;font-weight:800;font-size:1.05rem}
+.pay:disabled{opacity:.5}
+.confirm{display:none;flex:1;flex-direction:column;align-items:center;text-align:center;padding:40px 24px}
+.confirm .tick{width:74px;height:74px;border-radius:50%;background:#E8F5E4;display:grid;place-items:center;margin-bottom:18px}
+@media (prefers-color-scheme:dark){.confirm .tick{background:#173321}}
+.confirm h2{margin:0 0 4px;font-size:1.3rem}
+.confirm p{color:var(--muted);margin:0 0 22px}
+.receipt{width:100%;background:var(--bg);border-radius:14px;padding:16px 18px;text-align:left;font-size:.92rem}
+.receipt div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--edge)}
+.receipt div:last-child{border-bottom:0;font-weight:800;font-size:1.05rem;color:var(--brand)}
+.done{margin-top:24px;width:100%;padding:14px;border-radius:30px;background:var(--edge);color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+<div id="step1">
+<div class="bar"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><h1>Pay to Mobile</h1><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+<p class="notice">Demo screen for illustration only — no real payment is made.</p>
+<div class="steps"><span>Details</span></div>
+<div class="dots"><i class="on"></i><i></i><i></i></div>
+<div class="body">
+<div class="field"><select id="payFrom"><option value="">Pay From</option><option>My Savings Account · 4417</option><option>My Current Account · 2091</option></select><span class="chev">▾</span></div>
+<div class="field"><select id="payTo"><option value="" selected>Pay To — School Bookshop</option></select><span class="chev">▾</span></div>
+<div class="field"><input id="amount" type="number" inputmode="numeric" placeholder="Amount ( LKR )" readonly></div>
+<div class="field"><input id="remarks" type="text" maxlength="16" placeholder="Remarks - Max 16 characters" value="Bookshop order"></div>
+</div>
+<div class="footer"><button class="pay" id="payBtn">Pay</button></div>
+</div>
+<div class="confirm" id="step2">
+<div class="tick"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4FAE6A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+<h2>Payment Successful</h2>
+<p>This is a demo confirmation — no money has moved.</p>
+<div class="receipt" id="receipt"></div>
+<button class="done" id="doneBtn">Close</button>
+</div>
+</div>
+<script>
+var $=function(i){return document.getElementById(i)};
+var params=new URLSearchParams(location.search);
+var amt=params.get("amt")||"0";
+var name=params.get("name")||"";
+$("amount").value=amt;
+$("payBtn").addEventListener("click",function(){
+var receipt='<div><span>Paid To</span><span>School Bookshop</span></div>'+
+(name?'<div><span>Name</span><span>'+name+'</span></div>':'')+
+'<div><span>Remarks</span><span>'+($("remarks").value||"Bookshop order")+'</span></div>'+
+'<div><span>Amount</span><span>LKR '+Number(amt).toLocaleString("en-US")+'</span></div>';
+$("receipt").innerHTML=receipt;
+$("step1").style.display="none";
+$("step2").style.display="flex"
+});
+$("doneBtn").addEventListener("click",function(){window.close();if(!window.closed){history.back()}});
+</script>
+</body>
+</html>
