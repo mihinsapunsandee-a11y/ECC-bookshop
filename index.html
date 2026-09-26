@@ -115,13 +115,15 @@ body.pay .payModal{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 <p class="qrmsg" id="billWhen" style="margin-bottom:8px"></p>
 <div id="billLines" style="text-align:left;font-size:.88rem;max-height:180px;overflow:auto;border-top:1px dashed var(--edge);border-bottom:1px dashed var(--edge);padding:8px 0;margin-bottom:10px"></div>
 <div class="amt" id="payAmt">Rs. 0</div>
+<p class="qrmsg" id="billContact" style="margin-top:4px"></p>
+<button class="checkout" id="sendOrder" style="margin-top:12px">Send Order to Cashier</button>
+<div id="payAfter" style="display:none;margin-top:14px">
 <div class="qrbox" id="qrbox"></div>
 <p class="qrmsg" id="payMsg">Scan to pay, then show this bill at the counter.</p>
 <p class="qrmsg" style="margin-top:6px">Can't scan? <a id="waLink" href="#" target="_blank" style="color:var(--brand);font-weight:700;text-decoration:none">Contact us on WhatsApp</a></p>
 <p class="qrmsg" style="margin-top:4px"><a id="openLink" href="#" target="_blank" style="color:var(--brand);font-weight:700;text-decoration:none">Or tap here to open the payment page</a></p>
-<p class="qrmsg" id="billContact" style="margin-top:10px"></p>
-<button class="checkout" id="sendOrder" style="margin-top:14px">Send Order to Cashier</button>
-<p class="qrmsg" style="font-weight:800;color:var(--brand);margin-top:8px">Come Again! 🙂</p>
+</div>
+<p class="qrmsg" style="font-weight:800;color:var(--brand);margin-top:14px">Come Again! 🙂</p>
 <button class="payClose" id="payClose2">Close</button>
 </div>
 </div>
@@ -245,13 +247,10 @@ $("billName").textContent="Name: "+name;
 $("billWhen").textContent="Date: "+d+"  ·  Time: "+tm;
 $("billLines").innerHTML=sel.map(function(i){var q=cart[i.id],lt=q*i.price;t+=lt;return '<div style="display:flex;justify-content:space-between;padding:3px 0">'+'<span>'+i.name+' x'+q+'</span><span>'+fmt(lt)+'</span></div>'}).join("");
 $("payAmt").textContent=fmt(t);
-var payUrl=PAY_DEMO_BASE+"?amt="+t+"&name="+encodeURIComponent(name);
-$("openLink").href=payUrl;
-$("qrbox").innerHTML="";
-if(window.QRCode){new QRCode($("qrbox"),{text:payUrl,width:180,height:180,colorDark:"#000",colorLight:"#fff"})}
-else{$("qrbox").innerHTML='<span style="color:var(--muted);font-size:.85rem;padding:10px">QR code unavailable</span>'}
-$("waLink").href="https://wa.me/"+SHOP_WHATSAPP+"?text="+encodeURIComponent("Hi, I would like to pay Rs. "+t+" for my order.");
 $("billContact").textContent="Contact: "+SHOP_CONTACT;
+$("payAfter").style.display="none";
+$("sendOrder").disabled=false;
+$("sendOrder").textContent="Send Order to Cashier";
 $("payStep1").style.display="none";
 $("payStep2").style.display=""
 }
@@ -267,9 +266,18 @@ method:"POST",
 headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
 body:JSON.stringify({customer_name:name,items:orderItems,total:t,status:"new"})
 }).then(function(r){
-if(r.ok){btn.textContent="Order Sent ✓ — Show this to the cashier"}
-else{btn.disabled=false;btn.textContent="Send Order to Cashier";alert("Could not send order. Please try again, or show this bill at the counter.")}
-}).catch(function(){btn.disabled=false;btn.textContent="Send Order to Cashier";alert("Could not send order — check your internet connection.")})
+if(r.ok){
+btn.textContent="Order Sent ✓ — Now pay below";
+var payUrl=PAY_DEMO_BASE+"?amt="+t+"&name="+encodeURIComponent(name);
+$("openLink").href=payUrl;
+$("qrbox").innerHTML="";
+if(window.QRCode){new QRCode($("qrbox"),{text:payUrl,width:180,height:180,colorDark:"#000",colorLight:"#fff"})}
+else{$("qrbox").innerHTML='<span style="color:var(--muted);font-size:.85rem;padding:10px">QR code unavailable</span>'}
+$("waLink").href="https://wa.me/"+SHOP_WHATSAPP+"?text="+encodeURIComponent("Hi, I would like to pay Rs. "+t+" for my order.");
+$("payAfter").style.display=""
+}
+else{btn.disabled=false;btn.textContent="Send Order to Cashier";r.text().then(function(msg){alert("Could not send order: "+msg)})}
+}).catch(function(err){btn.disabled=false;btn.textContent="Send Order to Cashier";alert("Could not send order — check your internet connection. ("+err.message+")")})
 }
 drawCats();drawGrid();drawCart();
 </script>
