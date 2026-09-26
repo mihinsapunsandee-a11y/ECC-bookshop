@@ -104,8 +104,9 @@ body.pay .payModal{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 <div class="payModal" id="payModal">
 <div id="payStep1">
 <h3>Checkout</h3>
-<p class="qrmsg">Enter your name for the bill.</p>
-<input id="custName" type="text" placeholder="Your name" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--edge);font:inherit;margin:10px 0;background:var(--card);color:var(--ink)">
+<p class="qrmsg">Enter your name and phone number for the bill.</p>
+<input id="custName" type="text" placeholder="Your name" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--edge);font:inherit;margin:10px 0 8px;background:var(--card);color:var(--ink)">
+<input id="custPhone" type="tel" placeholder="Phone number" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--edge);font:inherit;margin:0 0 10px;background:var(--card);color:var(--ink)">
 <button class="checkout" id="billGo" style="margin-top:2px">View Bill</button>
 <button class="payClose" id="payClose1">Cancel</button>
 </div>
@@ -234,16 +235,19 @@ function openPay(){
 $("payStep1").style.display="";
 $("payStep2").style.display="none";
 $("custName").value="";
+$("custPhone").value="";
 document.body.classList.add("pay")
 }
 function showBill(){
 var name=$("custName").value.trim();
+var phone=$("custPhone").value.trim();
 if(!name){$("custName").focus();return}
+if(!phone){$("custPhone").focus();return}
 var sel=items.filter(function(i){return cart[i.id]>0}),t=0;
 var now=new Date();
 var d=now.toLocaleDateString();
 var tm=now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-$("billName").textContent="Name: "+name;
+$("billName").textContent="Name: "+name+"  ·  Phone: "+phone;
 $("billWhen").textContent="Date: "+d+"  ·  Time: "+tm;
 $("billLines").innerHTML=sel.map(function(i){var q=cart[i.id],lt=q*i.price;t+=lt;return '<div style="display:flex;justify-content:space-between;padding:3px 0">'+'<span>'+i.name+' x'+q+'</span><span>'+fmt(lt)+'</span></div>'}).join("");
 $("payAmt").textContent=fmt(t);
@@ -258,23 +262,27 @@ function closePay(){document.body.classList.remove("pay")}
 function sendOrderToCashier(){
 var sel=items.filter(function(i){return cart[i.id]>0}),t=0;
 var name=$("custName").value.trim()||"Customer";
+var phone=$("custPhone").value.trim()||"";
 var orderItems=sel.map(function(i){var q=cart[i.id],lt=q*i.price;t+=lt;return {name:i.name,qty:q,price:i.price,line_total:lt}});
 var btn=$("sendOrder");
 btn.disabled=true;btn.textContent="Sending...";
 fetch(SUPABASE_URL+"/rest/v1/orders",{
 method:"POST",
-headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
-body:JSON.stringify({customer_name:name,items:orderItems,total:t,status:"new"})
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=representation"},
+body:JSON.stringify({customer_name:name,phone:phone,items:orderItems,total:t,status:"pending"})
 }).then(function(r){
 if(r.ok){
+return r.json().then(function(rows){
+var orderId=rows&&rows[0]&&rows[0].id;
 btn.textContent="Order Sent ✓ — Now pay below";
-var payUrl=PAY_DEMO_BASE+"?amt="+t+"&name="+encodeURIComponent(name);
+var payUrl=PAY_DEMO_BASE+"?amt="+t+"&name="+encodeURIComponent(name)+(orderId?"&order="+encodeURIComponent(orderId):"");
 $("openLink").href=payUrl;
 $("qrbox").innerHTML="";
 if(window.QRCode){new QRCode($("qrbox"),{text:payUrl,width:180,height:180,colorDark:"#000",colorLight:"#fff"})}
 else{$("qrbox").innerHTML='<span style="color:var(--muted);font-size:.85rem;padding:10px">QR code unavailable</span>'}
 $("waLink").href="https://wa.me/"+SHOP_WHATSAPP+"?text="+encodeURIComponent("Hi, I would like to pay Rs. "+t+" for my order.");
 $("payAfter").style.display=""
+})
 }
 else{btn.disabled=false;btn.textContent="Send Order to Cashier";r.text().then(function(msg){alert("Could not send order: "+msg)})}
 }).catch(function(err){btn.disabled=false;btn.textContent="Send Order to Cashier";alert("Could not send order — check your internet connection. ("+err.message+")")})

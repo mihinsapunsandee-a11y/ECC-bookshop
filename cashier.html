@@ -28,8 +28,10 @@ main{max-width:800px;margin:0 auto;padding:16px}
 .ohead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
 .oname{font-weight:800;font-size:1.05rem}
 .otime{color:var(--muted);font-size:.8rem;margin-top:2px}
+.ocontact{color:var(--muted);font-size:.82rem;margin-top:2px}
 .badge{background:var(--brand);color:#fff;font-size:.72rem;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap}
 .badge.done{background:#4FAE6A}
+.badge.pending{background:#9C9C9C}
 .items{margin:10px 0;font-size:.92rem}
 .items div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--edge)}
 .ototal{display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:var(--brand);margin-top:8px}
@@ -66,8 +68,15 @@ $("main").innerHTML=list.map(function(o){
 var when=new Date(o.created_at).toLocaleString();
 var itemsHtml=(o.items||[]).map(function(it){return '<div><span>'+it.name+' x'+it.qty+'</span><span>'+fmt(it.line_total)+'</span></div>'}).join("");
 var isNew=o.status==="new";
+var isPending=o.status==="pending";
+var badgeClass=isNew?"":(isPending?" pending":" done");
+var badgeText=isNew?"NEW":(isPending?"AWAITING PAYMENT":"DONE");
+var contactBits=[];
+if(o.phone)contactBits.push("📞 "+o.phone);
+if(o.card_name)contactBits.push("💳 "+o.card_name);
+var contactHtml=contactBits.length?'<div class="ocontact">'+contactBits.join(" &nbsp;·&nbsp; ")+'</div>':"";
 return '<div class="order'+(isNew?" new":"")+'">'
-+'<div class="ohead"><div><div class="oname">'+o.customer_name+'</div><div class="otime">'+when+'</div></div><span class="badge'+(isNew?"":" done")+'">'+(isNew?"NEW":"DONE")+'</span></div>'
++'<div class="ohead"><div><div class="oname">'+o.customer_name+'</div><div class="otime">'+when+'</div>'+contactHtml+'</div><span class="badge'+badgeClass+'">'+badgeText+'</span></div>'
 +'<div class="items">'+itemsHtml+'</div>'
 +'<div class="ototal"><span>Total</span><span>'+fmt(o.total)+'</span></div>'
 +(isNew?'<div class="actions"><button class="done-btn" data-done="'+o.id+'">Mark as Done</button></div>':'')
