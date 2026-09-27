@@ -121,7 +121,6 @@ body.pay .payModal{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 <div id="payAfter" style="display:none;margin-top:14px">
 <div class="qrbox" id="qrbox"></div>
 <p class="qrmsg" id="payMsg">Scan to pay, then show this bill at the counter.</p>
-<p class="qrmsg" style="margin-top:6px">Can't scan? <a id="waLink" href="#" target="_blank" style="color:var(--brand);font-weight:700;text-decoration:none">Contact us on WhatsApp</a></p>
 <p class="qrmsg" style="margin-top:4px"><a id="openLink" href="#" target="_blank" style="color:var(--brand);font-weight:700;text-decoration:none">Or tap here to open the payment page</a></p>
 </div>
 <p class="qrmsg" style="font-weight:800;color:var(--brand);margin-top:14px">Come Again! 🙂</p>
@@ -132,7 +131,7 @@ body.pay .payModal{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 <script>
 var CUR="Rs. ";
 var PAY_DEMO_BASE="https://mihinsapunsandee-a11y.github.io/ECC-bookshop/pay.html";
-var SHOP_WHATSAPP="94778406887";
+var SHOP_WHATSAPP="94766619984";
 var SUPABASE_URL="https://bwilwzolobejlwgmhmev.supabase.co";
 var SUPABASE_KEY="sb_publishable_75nKwBTMIO38Ipncbnl_qA_JFPC2hRQ";
 var SHOP_CONTACT="077 840 6887";
@@ -280,7 +279,6 @@ $("openLink").href=payUrl;
 $("qrbox").innerHTML="";
 if(window.QRCode){new QRCode($("qrbox"),{text:payUrl,width:180,height:180,colorDark:"#000",colorLight:"#fff"})}
 else{$("qrbox").innerHTML='<span style="color:var(--muted);font-size:.85rem;padding:10px">QR code unavailable</span>'}
-$("waLink").href="https://wa.me/"+SHOP_WHATSAPP+"?text="+encodeURIComponent("Hi, I would like to pay Rs. "+t+" for my order.");
 $("payAfter").style.display=""
 })
 }
