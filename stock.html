@@ -49,13 +49,13 @@ h3{margin:0 0 4px}
 </div>
 </div>
 <div id="app" style="display:none">
-<div class="top">📦 Add Stock</div>
+<div class="top" style="display:flex;justify-content:space-between;align-items:center">📦 Add Stock <a href="cashier.html" style="color:#fff;font-size:.85rem;font-weight:700;text-decoration:underline">← Cashier</a></div>
 <main>
 <div class="card">
 <h3>Scan or enter a barcode</h3>
 <p class="hint">Works best in Chrome on Android. If scanning doesn't work on your device, just type the number in manually.</p>
 <button class="scan-btn" id="scanBtn">📷 Scan Barcode</button>
-<video id="video" playsinline muted></video>
+<div id="reader" style="margin-top:10px;display:none;border-radius:10px;overflow:hidden"></div>
 <div class="msg" id="scanMsg"></div>
 <label for="barcode">Barcode number</label>
 <input id="barcode" type="text" inputmode="numeric" placeholder="e.g. 8901234567890">
@@ -65,131 +65,4 @@ h3{margin:0 0 4px}
 <h3>Item details</h3>
 <label for="iname">Name</label>
 <input id="iname" type="text" placeholder="e.g. Blue Gel Pen">
-<label for="iprice">Price (Rs.)</label>
-<input id="iprice" type="number" inputmode="decimal" placeholder="e.g. 60">
-<label for="ispec">Notes (optional)</label>
-<input id="ispec" type="text" placeholder="e.g. Pack of 2, blue ink">
-<button class="save-btn" id="saveBtn">Add to Bookshop</button>
-<div class="msg" id="saveMsg"></div>
-</div>
-
-<div class="card">
-<h3>Recently added</h3>
-<div id="list"></div>
-</div>
-</main>
-</div>
-<script>
-var SUPABASE_URL="https://bwilwzolobejlwgmhmev.supabase.co";
-var SUPABASE_KEY="sb_publishable_75nKwBTMIO38Ipncbnl_qA_JFPC2hRQ";
-var STOCK_PIN="1234";
-var $=function(i){return document.getElementById(i)};
-
-$("pinGo").addEventListener("click",tryPin);
-$("pinInput").addEventListener("keydown",function(e){if(e.key==="Enter")tryPin()});
-function tryPin(){
-if($("pinInput").value===STOCK_PIN){
-sessionStorage.setItem("stockAuth","1");
-$("lockScreen").style.display="none";$("app").style.display="";
-loadList()
-}else{
-$("pinErr").textContent="Incorrect PIN, try again.";
-$("pinInput").value=""
-}
-}
-if(sessionStorage.getItem("stockAuth")==="1"){
-$("lockScreen").style.display="none";$("app").style.display="";
-loadList()
-}
-
-var stream=null,scanning=false;
-$("scanBtn").addEventListener("click",function(){
-if(scanning){stopScan();return}
-if(!("BarcodeDetector" in window)){
-$("scanMsg").className="msg err";
-$("scanMsg").textContent="Your browser can't scan in-page — please type the barcode number manually below.";
-return
-}
-startScan()
-});
-function startScan(){
-navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
-stream=s;
-var v=$("video");
-v.srcObject=s;v.style.display="";v.play();
-scanning=true;
-$("scanBtn").textContent="Stop Scanning";
-$("scanMsg").className="msg";$("scanMsg").textContent="Point the camera at the barcode…";
-var detector=new BarcodeDetector();
-var tick=function(){
-if(!scanning)return;
-detector.detect(v).then(function(codes){
-if(codes&&codes.length){
-$("barcode").value=codes[0].rawValue;
-$("scanMsg").className="msg ok";
-$("scanMsg").textContent="Scanned: "+codes[0].rawValue;
-stopScan()
-}else{
-requestAnimationFrame(tick)
-}
-}).catch(function(){requestAnimationFrame(tick)})
-};
-requestAnimationFrame(tick)
-}).catch(function(err){
-$("scanMsg").className="msg err";
-$("scanMsg").textContent="Couldn't access camera — check permissions, or type the barcode manually."
-})
-}
-function stopScan(){
-scanning=false;
-if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
-$("video").style.display="none";
-$("scanBtn").textContent="📷 Scan Barcode"
-}
-
-$("saveBtn").addEventListener("click",function(){
-var name=$("iname").value.trim();
-var price=$("iprice").value.trim();
-var barcode=$("barcode").value.trim();
-var spec=$("ispec").value.trim();
-$("saveMsg").className="msg";$("saveMsg").textContent="";
-if(!name){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a name for the item.";return}
-if(!price||isNaN(Number(price))){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a valid price.";return}
-$("saveBtn").disabled=true;$("saveBtn").textContent="Adding…";
-fetch(SUPABASE_URL+"/rest/v1/stock_items",{
-method:"POST",
-headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
-body:JSON.stringify({barcode:barcode||null,name:name,price:Number(price),spec:spec||null})
-}).then(function(r){
-$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
-if(!r.ok){r.text().then(function(t){$("saveMsg").className="msg err";$("saveMsg").textContent="Could not save: "+t});return}
-$("saveMsg").className="msg ok";$("saveMsg").textContent="Added! It now shows on the bookshop page under 'New Stock'.";
-$("iname").value="";$("iprice").value="";$("ispec").value="";$("barcode").value="";
-loadList()
-}).catch(function(){
-$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
-$("saveMsg").className="msg err";$("saveMsg").textContent="Network error — check your connection."
-})
-});
-
-function loadList(){
-fetch(SUPABASE_URL+"/rest/v1/stock_items?select=*&order=created_at.desc&limit=25",{
-headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
-}).then(function(r){return r.json()})
-.then(function(rows){
-$("list").innerHTML=(rows&&rows.length)?rows.map(function(row){
-return '<div class="item"><div><div class="n">'+row.name+'</div><div class="p">Rs. '+Number(row.price).toLocaleString("en-US")+(row.barcode?(" · "+row.barcode):"")+'</div></div><button class="del" data-del="'+row.id+'">Remove</button></div>'
-}).join(""):'<p class="hint">No stock added yet.</p>'
-}).catch(function(){})
-}
-document.addEventListener("click",function(e){
-var b=e.target.closest("button");if(!b||!b.dataset.del)return;
-if(!confirm("Remove this item from the bookshop?"))return;
-fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+b.dataset.del,{
-method:"DELETE",
-headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
-}).then(function(){loadList()})
-});
-</script>
-</body>
-</html>
+<label for="iprice">Price
