@@ -65,4 +65,205 @@ h3{margin:0 0 4px}
 <h3>Item details</h3>
 <label for="iname">Name</label>
 <input id="iname" type="text" placeholder="e.g. Blue Gel Pen">
-<label for="iprice">Price
+<label for="iprice">Price (Rs.)</label>
+<input id="iprice" type="number" inputmode="decimal" placeholder="e.g. 60">
+<label for="iqty">Quantity to add</label>
+<input id="iqty" type="number" inputmode="numeric" placeholder="e.g. 10" value="1">
+<p class="hint">If this barcode already exists, this quantity will be added to the existing stock instead of creating a duplicate.</p>
+<label for="ispec">Notes (optional)</label>
+<input id="ispec" type="text" placeholder="e.g. Pack of 2, blue ink">
+<label for="iphoto">Photo (optional)</label>
+<input id="iphoto" type="file" accept="image/*" capture="environment">
+<img id="photoPreview" style="display:none;max-width:120px;border-radius:8px;margin-top:10px">
+<button class="save-btn" id="saveBtn">Add to Bookshop</button>
+<div class="msg" id="saveMsg"></div>
+</div>
+
+<div class="card">
+<h3>Inventory</h3>
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;font-size:.88rem" id="invTable">
+<thead><tr style="text-align:left;border-bottom:2px solid var(--edge)">
+<th style="padding:6px 4px"></th><th style="padding:6px 4px">Name</th><th style="padding:6px 4px">Barcode</th><th style="padding:6px 4px">Price</th><th style="padding:6px 4px">Qty</th><th style="padding:6px 4px"></th>
+</tr></thead>
+<tbody id="invBody"></tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+var SUPABASE_URL="https://bwilwzolobejlwgmhmev.supabase.co";
+var SUPABASE_KEY="sb_publishable_75nKwBTMIO38Ipncbnl_qA_JFPC2hRQ";
+var STOCK_PIN="1234";
+var $=function(i){return document.getElementById(i)};
+
+$("pinGo").addEventListener("click",tryPin);
+$("pinInput").addEventListener("keydown",function(e){if(e.key==="Enter")tryPin()});
+function tryPin(){
+if($("pinInput").value===STOCK_PIN){
+sessionStorage.setItem("stockAuth","1");
+$("lockScreen").style.display="none";$("app").style.display="";
+loadList()
+}else{
+$("pinErr").textContent="Incorrect PIN, try again.";
+$("pinInput").value=""
+}
+}
+if(sessionStorage.getItem("stockAuth")==="1"){
+$("lockScreen").style.display="none";$("app").style.display="";
+loadList()
+}
+
+var scanning=false,qrScanner=null;
+$("scanBtn").addEventListener("click",function(){
+if(scanning){stopScan();return}
+startScan()
+});
+function startScan(){
+if(typeof Html5Qrcode==="undefined"){
+$("scanMsg").className="msg err";
+$("scanMsg").textContent="Scanner failed to load — check your internet connection, or type the barcode manually.";
+return
+}
+$("reader").style.display="";
+$("scanBtn").textContent="Stop Scanning";
+$("scanMsg").className="msg";$("scanMsg").textContent="Point the camera at the barcode…";
+scanning=true;
+qrScanner=new Html5Qrcode("reader");
+var formats=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.QR_CODE];
+qrScanner.start(
+{facingMode:"environment"},
+{fps:10,qrbox:{width:250,height:120},formatsToSupport:formats},
+function(text){
+$("barcode").value=text;
+$("scanMsg").className="msg ok";
+$("scanMsg").textContent="Scanned: "+text;
+stopScan()
+},
+function(){}
+).catch(function(err){
+scanning=false;
+$("reader").style.display="none";
+$("scanBtn").textContent="📷 Scan Barcode";
+$("scanMsg").className="msg err";
+$("scanMsg").textContent="Couldn't access camera — check permissions, or type the barcode manually."
+})
+}
+function stopScan(){
+scanning=false;
+$("scanBtn").textContent="📷 Scan Barcode";
+if(qrScanner){
+qrScanner.stop().then(function(){
+qrScanner.clear();
+$("reader").style.display="none"
+}).catch(function(){$("reader").style.display="none"})
+}else{
+$("reader").style.display="none"
+}
+}
+
+var capturedImg=null;
+$("iphoto").addEventListener("change",function(e){
+var file=e.target.files[0];if(!file)return;
+var reader=new FileReader();
+reader.onload=function(ev){
+var img=new Image();
+img.onload=function(){
+var maxW=400;
+var scale=Math.min(1,maxW/img.width);
+var canvas=document.createElement("canvas");
+canvas.width=img.width*scale;canvas.height=img.height*scale;
+canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+capturedImg=canvas.toDataURL("image/jpeg",0.7);
+$("photoPreview").src=capturedImg;
+$("photoPreview").style.display="";
+};
+img.src=ev.target.result
+};
+reader.readAsDataURL(file)
+});
+
+$("saveBtn").addEventListener("click",function(){
+var name=$("iname").value.trim();
+var price=$("iprice").value.trim();
+var barcode=$("barcode").value.trim();
+var spec=$("ispec").value.trim();
+var addQty=Number($("iqty").value)||1;
+$("saveMsg").className="msg";$("saveMsg").textContent="";
+if(!name){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a name for the item.";return}
+if(!price||isNaN(Number(price))){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a valid price.";return}
+$("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
+
+function afterSave(){
+$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
+$("saveMsg").className="msg ok";$("saveMsg").textContent="Saved! It now shows on the bookshop page under 'New Stock'.";
+$("iname").value="";$("iprice").value="";$("ispec").value="";$("barcode").value="";$("iphoto").value="";$("iqty").value="1";
+$("photoPreview").style.display="none";capturedImg=null;
+loadList()
+}
+function fail(msg){
+$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
+$("saveMsg").className="msg err";$("saveMsg").textContent=msg
+}
+
+function createNew(){
+fetch(SUPABASE_URL+"/rest/v1/stock_items",{
+method:"POST",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
+body:JSON.stringify({barcode:barcode||null,name:name,price:Number(price),spec:spec||null,img:capturedImg,qty:addQty})
+}).then(function(r){r.ok?afterSave():r.text().then(function(t){fail("Could not save: "+t)})}).catch(function(){fail("Network error — check your connection.")})
+}
+
+if(barcode){
+fetch(SUPABASE_URL+"/rest/v1/stock_items?barcode=eq."+encodeURIComponent(barcode)+"&select=id,qty",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()}).then(function(rows){
+if(rows&&rows.length){
+var existing=rows[0];
+var newQty=(Number(existing.qty)||0)+addQty;
+fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+existing.id,{
+method:"PATCH",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
+body:JSON.stringify({qty:newQty,price:Number(price),name:name})
+}).then(function(r){r.ok?afterSave():fail("Could not update existing item.")}).catch(function(){fail("Network error — check your connection.")})
+}else{
+createNew()
+}
+}).catch(function(){createNew()})
+}else{
+createNew()
+}
+});
+
+function loadList(){
+fetch(SUPABASE_URL+"/rest/v1/stock_items?select=*&order=name.asc",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()})
+.then(function(rows){
+$("invBody").innerHTML=(rows&&rows.length)?rows.map(function(row){
+var qty=Number(row.qty)||0;
+var qtyColor=qty<=0?"#D33":(qty<=3?"#B8860B":"inherit");
+return '<tr style="border-bottom:1px solid var(--edge)">'
++'<td style="padding:6px 4px">'+(row.img?'<img src="'+row.img+'" style="width:32px;height:32px;object-fit:cover;border-radius:5px">':'')+'</td>'
++'<td style="padding:6px 4px">'+row.name+(row.spec?'<div class="hint" style="margin:0">'+row.spec+'</div>':'')+'</td>'
++'<td style="padding:6px 4px;color:var(--muted)">'+(row.barcode||"—")+'</td>'
++'<td style="padding:6px 4px">Rs. '+Number(row.price).toLocaleString("en-US")+'</td>'
++'<td style="padding:6px 4px;font-weight:800;color:'+qtyColor+'">'+qty+'</td>'
++'<td style="padding:6px 4px"><button class="del" data-del="'+row.id+'">Remove</button></td>'
++'</tr>'
+}).join(""):'<tr><td colspan="6" class="hint" style="padding:10px 4px">No stock added yet.</td></tr>'
+}).catch(function(){})
+}
+document.addEventListener("click",function(e){
+var b=e.target.closest("button");if(!b||!b.dataset.del)return;
+if(!confirm("Remove this item from the bookshop?"))return;
+fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+b.dataset.del,{
+method:"DELETE",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(){loadList()})
+});
+</script>
+</body>
+</html>
