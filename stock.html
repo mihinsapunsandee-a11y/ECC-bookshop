@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Add Stock - ECC Bookshop</title>
+<style>
+:root{--brand:#F85606;--bg:#F2F3F5;--card:#fff;--ink:#212121;--muted:#757575;--edge:#E4E4E4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--card:#1E1E1E;--ink:#F1F1F1;--muted:#A5A5A5;--edge:#333}}
+:root[data-theme="dark"]{--bg:#121212;--card:#1E1E1E;--ink:#F1F1F1;--muted:#A5A5A5;--edge:#333}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}
+button{font:inherit;cursor:pointer;border:0}
+.top{position:sticky;top:0;background:var(--brand);color:#fff;padding:14px 16px;font-weight:800;font-size:1.2rem}
+main{max-width:520px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1.5px solid var(--edge);border-radius:12px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin:12px 0 6px}
+label:first-of-type{margin-top:0}
+input{width:100%;padding:11px;border-radius:8px;border:1.5px solid var(--edge);font:inherit;background:var(--card);color:var(--ink)}
+.scan-btn{width:100%;padding:12px;border-radius:8px;background:var(--ink);color:#fff;font-weight:700;margin-top:10px}
+.save-btn{width:100%;padding:12px;border-radius:8px;background:var(--brand);color:#fff;font-weight:800;margin-top:16px}
+.save-btn:disabled{opacity:.5}
+video{width:100%;border-radius:10px;margin-top:10px;display:none;background:#000}
+.msg{font-size:.85rem;margin-top:8px;min-height:16px}
+.msg.ok{color:#2E8B4F}
+.msg.err{color:#D33}
+.item{background:var(--card);border:1.5px solid var(--edge);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.item .n{font-weight:700}
+.item .p{color:var(--muted);font-size:.85rem}
+.item .del{color:#D33;background:transparent;font-weight:700}
+.lock{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+.lock-card{background:var(--card);border:1.5px solid var(--edge);border-radius:14px;padding:28px 24px;max-width:320px;width:100%;text-align:center}
+.lock-card input{text-align:center;letter-spacing:4px;font-size:1.2rem}
+.lock-card button{width:100%;margin-top:14px;padding:12px;border-radius:8px;background:var(--brand);color:#fff;font-weight:800}
+.lock-err{color:#D33;font-size:.85rem;margin-top:10px;min-height:16px}
+h3{margin:0 0 4px}
+.hint{color:var(--muted);font-size:.82rem;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="lock" id="lockScreen">
+<div class="lock-card">
+<h2>🔒 Stock Access</h2>
+<p style="color:var(--muted);font-size:.9rem">Enter the PIN to add stock.</p>
+<input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN">
+<button id="pinGo">Unlock</button>
+<div class="lock-err" id="pinErr"></div>
+</div>
+</div>
+<div id="app" style="display:none">
+<div class="top">📦 Add Stock</div>
+<main>
+<div class="card">
+<h3>Scan or enter a barcode</h3>
+<p class="hint">Works best in Chrome on Android. If scanning doesn't work on your device, just type the number in manually.</p>
+<button class="scan-btn" id="scanBtn">📷 Scan Barcode</button>
+<video id="video" playsinline muted></video>
+<div class="msg" id="scanMsg"></div>
+<label for="barcode">Barcode number</label>
+<input id="barcode" type="text" inputmode="numeric" placeholder="e.g. 8901234567890">
+</div>
+
+<div class="card">
+<h3>Item details</h3>
+<label for="iname">Name</label>
+<input id="iname" type="text" placeholder="e.g. Blue Gel Pen">
+<label for="iprice">Price (Rs.)</label>
+<input id="iprice" type="number" inputmode="decimal" placeholder="e.g. 60">
+<label for="ispec">Notes (optional)</label>
+<input id="ispec" type="text" placeholder="e.g. Pack of 2, blue ink">
+<button class="save-btn" id="saveBtn">Add to Bookshop</button>
+<div class="msg" id="saveMsg"></div>
+</div>
+
+<div class="card">
+<h3>Recently added</h3>
+<div id="list"></div>
+</div>
+</main>
+</div>
+<script>
+var SUPABASE_URL="https://bwilwzolobejlwgmhmev.supabase.co";
+var SUPABASE_KEY="sb_publishable_75nKwBTMIO38Ipncbnl_qA_JFPC2hRQ";
+var STOCK_PIN="1234";
+var $=function(i){return document.getElementById(i)};
+
+$("pinGo").addEventListener("click",tryPin);
+$("pinInput").addEventListener("keydown",function(e){if(e.key==="Enter")tryPin()});
+function tryPin(){
+if($("pinInput").value===STOCK_PIN){
+sessionStorage.setItem("stockAuth","1");
+$("lockScreen").style.display="none";$("app").style.display="";
+loadList()
+}else{
+$("pinErr").textContent="Incorrect PIN, try again.";
+$("pinInput").value=""
+}
+}
+if(sessionStorage.getItem("stockAuth")==="1"){
+$("lockScreen").style.display="none";$("app").style.display="";
+loadList()
+}
+
+var stream=null,scanning=false;
+$("scanBtn").addEventListener("click",function(){
+if(scanning){stopScan();return}
+if(!("BarcodeDetector" in window)){
+$("scanMsg").className="msg err";
+$("scanMsg").textContent="Your browser can't scan in-page — please type the barcode number manually below.";
+return
+}
+startScan()
+});
+function startScan(){
+navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(s){
+stream=s;
+var v=$("video");
+v.srcObject=s;v.style.display="";v.play();
+scanning=true;
+$("scanBtn").textContent="Stop Scanning";
+$("scanMsg").className="msg";$("scanMsg").textContent="Point the camera at the barcode…";
+var detector=new BarcodeDetector();
+var tick=function(){
+if(!scanning)return;
+detector.detect(v).then(function(codes){
+if(codes&&codes.length){
+$("barcode").value=codes[0].rawValue;
+$("scanMsg").className="msg ok";
+$("scanMsg").textContent="Scanned: "+codes[0].rawValue;
+stopScan()
+}else{
+requestAnimationFrame(tick)
+}
+}).catch(function(){requestAnimationFrame(tick)})
+};
+requestAnimationFrame(tick)
+}).catch(function(err){
+$("scanMsg").className="msg err";
+$("scanMsg").textContent="Couldn't access camera — check permissions, or type the barcode manually."
+})
+}
+function stopScan(){
+scanning=false;
+if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
+$("video").style.display="none";
+$("scanBtn").textContent="📷 Scan Barcode"
+}
+
+$("saveBtn").addEventListener("click",function(){
+var name=$("iname").value.trim();
+var price=$("iprice").value.trim();
+var barcode=$("barcode").value.trim();
+var spec=$("ispec").value.trim();
+$("saveMsg").className="msg";$("saveMsg").textContent="";
+if(!name){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a name for the item.";return}
+if(!price||isNaN(Number(price))){$("saveMsg").className="msg err";$("saveMsg").textContent="Enter a valid price.";return}
+$("saveBtn").disabled=true;$("saveBtn").textContent="Adding…";
+fetch(SUPABASE_URL+"/rest/v1/stock_items",{
+method:"POST",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
+body:JSON.stringify({barcode:barcode||null,name:name,price:Number(price),spec:spec||null})
+}).then(function(r){
+$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
+if(!r.ok){r.text().then(function(t){$("saveMsg").className="msg err";$("saveMsg").textContent="Could not save: "+t});return}
+$("saveMsg").className="msg ok";$("saveMsg").textContent="Added! It now shows on the bookshop page under 'New Stock'.";
+$("iname").value="";$("iprice").value="";$("ispec").value="";$("barcode").value="";
+loadList()
+}).catch(function(){
+$("saveBtn").disabled=false;$("saveBtn").textContent="Add to Bookshop";
+$("saveMsg").className="msg err";$("saveMsg").textContent="Network error — check your connection."
+})
+});
+
+function loadList(){
+fetch(SUPABASE_URL+"/rest/v1/stock_items?select=*&order=created_at.desc&limit=25",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()})
+.then(function(rows){
+$("list").innerHTML=(rows&&rows.length)?rows.map(function(row){
+return '<div class="item"><div><div class="n">'+row.name+'</div><div class="p">Rs. '+Number(row.price).toLocaleString("en-US")+(row.barcode?(" · "+row.barcode):"")+'</div></div><button class="del" data-del="'+row.id+'">Remove</button></div>'
+}).join(""):'<p class="hint">No stock added yet.</p>'
+}).catch(function(){})
+}
+document.addEventListener("click",function(e){
+var b=e.target.closest("button");if(!b||!b.dataset.del)return;
+if(!confirm("Remove this item from the bookshop?"))return;
+fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+b.dataset.del,{
+method:"DELETE",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(){loadList()})
+});
+</script>
+</body>
+</html>
