@@ -84,9 +84,10 @@ p.sub{color:var(--muted);margin:0}
 </div>
 
 <div class="state" id="successState">
-<div class="check">✓</div>
-<h2>Payment successful</h2>
+<div class="check" id="successIcon">✓</div>
+<h2 id="successTitle">Payment successful</h2>
 <p class="sub" id="successSub">Your order has been sent to the counter.</p>
+<p class="sub" id="statusLine" style="margin-top:14px;font-weight:700;color:var(--brand)"></p>
 </div>
 
 <div class="state" id="failState">
@@ -165,6 +166,24 @@ body:JSON.stringify({status:"paid",card_name:cardName})
 })
 }
 
+var statusPoll=null;
+function startStatusPoll(){
+if(!orderId)return;
+statusPoll=setInterval(function(){
+fetch(SUPABASE_URL+"/rest/v1/orders?id=eq."+encodeURIComponent(orderId)+"&select=status",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()}).then(function(rows){
+var st=rows&&rows[0]&&rows[0].status;
+if(st==="completed"){
+$("statusLine").textContent="✅ Your order is ready for pickup!";
+clearInterval(statusPoll)
+}else if(st==="paid"){
+$("statusLine").textContent="⏳ Waiting for the counter to prepare your order…";
+}
+}).catch(function(){})
+},5000)
+}
+
 $("payBtn").addEventListener("click",function(){
 if(!validate())return;
 var cardName=$("ccName").value.trim();
@@ -174,6 +193,7 @@ markOrderPaid(cardName).then(function(r){
 if(r&&!r.ok){throw new Error("update failed")}
 showState("successState");
 $("successSub").textContent=orderId?"Your order has been sent to the counter — the cashier will see it shortly.":"Payment recorded, but this link had no order attached.";
+startStatusPoll();
 }).catch(function(){
 showState("failState");
 $("failSub").textContent="We took the test payment but couldn't update the order. Please show this screen at the counter.";
