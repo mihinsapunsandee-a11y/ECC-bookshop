@@ -184,6 +184,30 @@ $("statusLine").textContent="⏳ Waiting for the counter to prepare your order�
 },5000)
 }
 
+function decrementStock(){
+if(!orderId)return Promise.resolve();
+return fetch(SUPABASE_URL+"/rest/v1/orders?id=eq."+encodeURIComponent(orderId)+"&select=items",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()}).then(function(rows){
+var ord=rows&&rows[0];
+if(!ord||!ord.items)return;
+var stockLines=ord.items.filter(function(it){return it.stock_id});
+return Promise.all(stockLines.map(function(it){
+return fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+it.stock_id+"&select=qty",{
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+}).then(function(r){return r.json()}).then(function(srows){
+var cur=srows&&srows[0]?Number(srows[0].qty)||0:0;
+var newQty=Math.max(0,cur-it.qty);
+return fetch(SUPABASE_URL+"/rest/v1/stock_items?id=eq."+it.stock_id,{
+method:"PATCH",
+headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
+body:JSON.stringify({qty:newQty})
+})
+}).catch(function(){})
+}))
+}).catch(function(){})
+}
+
 $("payBtn").addEventListener("click",function(){
 if(!validate())return;
 var cardName=$("ccName").value.trim();
@@ -194,6 +218,7 @@ if(r&&!r.ok){throw new Error("update failed")}
 showState("successState");
 $("successSub").textContent=orderId?"Your order has been sent to the counter — the cashier will see it shortly.":"Payment recorded, but this link had no order attached.";
 startStatusPoll();
+decrementStock();
 }).catch(function(){
 showState("failState");
 $("failSub").textContent="We took the test payment but couldn't update the order. Please show this screen at the counter.";
